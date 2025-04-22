@@ -1,0 +1,89 @@
+#include <stdio.h>
+#include <stdlib.h>
+
+// Semaphore implementation
+typedef struct {
+    int value;
+} Semaphore;
+
+void wait(Semaphore *s) {
+    while(s->value <= 0); // Busy waiting
+    s->value--;
+}
+
+void signal(Semaphore *s) {
+    s->value++;
+}
+
+// Buffer data structure
+#define BUFFER_SIZE 5
+int buffer[BUFFER_SIZE];
+int in = 0, out = 0, count = 0;
+
+// Semaphores
+Semaphore empty, full, mutex;
+
+// Producer function
+void producer() {
+    int item, i;
+    
+    for(i = 0; i < 10; i++) {  // Produce 10 items
+        item = rand() % 100;  // Generate a random item
+        
+        wait(&empty);  // Wait for empty slot
+        wait(&mutex);  // Wait for buffer access
+        
+        // Critical section
+        buffer[in] = item;
+        in = (in + 1) % BUFFER_SIZE;
+        count++;
+        
+        printf("Producer produced: %d (Buffer count: %d)\n", item, count);
+        
+        signal(&mutex);  // Release buffer access
+        signal(&full);   // Signal a full slot
+    }
+}
+
+// Consumer function
+void consumer() {
+    int item, i;
+    
+    for(i = 0; i < 10; i++) {  // Consume 10 items
+        wait(&full);   // Wait for a full slot
+        wait(&mutex);  // Wait for buffer access
+        
+        // Critical section
+        item = buffer[out];
+        out = (out + 1) % BUFFER_SIZE;
+        count--;
+        
+        printf("Consumer consumed: %d (Buffer count: %d)\n", item, count);
+        
+        signal(&mutex);  // Release buffer access
+        signal(&empty);  // Signal an empty slot
+    }
+}
+
+void main() {
+    // Initialize semaphores
+    empty.value = BUFFER_SIZE;
+    full.value = 0;
+    mutex.value = 1;
+    
+    printf("Producer-Consumer Problem Simulation\n");
+    printf("Buffer size: %d\n\n", BUFFER_SIZE);
+    
+    // In a real implementation, these would be threads
+    // Here we just simulate the operations sequentially
+    printf("Simulating producer and consumer operations:\n");
+    
+    int i;
+    for(i = 0; i < 10; i++) {
+        producer();     // Run producer for one cycle
+        consumer();     // Run consumer for one cycle
+    }
+    
+    printf("\nNote: In a real implementation, producer and consumer would run concurrently as separate threads.\n");
+    printf("This is a simplified simulation to demonstrate the semaphore concept.\n");
+}
