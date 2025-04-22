@@ -1,0 +1,106 @@
+#include <stdio.h>
+
+// Philosopher states
+#define THINKING 0
+#define HUNGRY 1
+#define EATING 2
+
+// Number of philosophers
+#define N 5
+
+// Semaphore implementation
+typedef struct {
+    int value;
+} Semaphore;
+
+void wait(Semaphore *s) {
+    while(s->value <= 0); // Busy waiting
+    s->value--;
+}
+
+void signal(Semaphore *s) {
+    s->value++;
+}
+
+// Global variables
+int state[N];           // Array to store states of philosophers
+Semaphore mutex;        // For mutual exclusion when accessing state array
+Semaphore s[N];         // One semaphore per philosopher
+int philosopher_id[N] = {0, 1, 2, 3, 4}; // Philosopher IDs
+
+// Function to get left philosopher
+int left(int i) {
+    return (i + N - 1) % N;
+}
+
+// Function to get right philosopher
+int right(int i) {
+    return (i + 1) % N;
+}
+
+// Function to check if philosopher can eat
+void test(int i) {
+    if(state[i] == HUNGRY && state[left(i)] != EATING && state[right(i)] != EATING) {
+        state[i] = EATING;
+        signal(&s[i]);
+    }
+}
+
+// Function for philosopher to pick up forks
+void pickup_forks(int i) {
+    wait(&mutex);           // Enter critical section
+    state[i] = HUNGRY;      // Set state to hungry
+    printf("Philosopher %d is hungry\n", i);
+    test(i);                // Try to pick up forks
+    signal(&mutex);         // Exit critical section
+    wait(&s[i]);            // Block if forks weren't picked up
+    printf("Philosopher %d is eating\n", i);
+}
+
+// Function for philosopher to put down forks
+void return_forks(int i) {
+    wait(&mutex);           // Enter critical section
+    state[i] = THINKING;    // Set state to thinking
+    printf("Philosopher %d is thinking\n", i);
+    test(left(i));          // Test left neighbor
+    test(right(i));         // Test right neighbor
+    signal(&mutex);         // Exit critical section
+}
+
+// Function representing philosopher's lifecycle
+void philosopher(int i) {
+    int j;
+    for(j = 0; j < 3; j++) {  // Each philosopher eats 3 times
+        printf("Philosopher %d is thinking\n", i);
+        pickup_forks(i);      // Pickup forks
+        // Eating
+        return_forks(i);      // Return forks
+    }
+}
+
+void main() {
+    int i;
+    
+    // Initialize semaphores
+    mutex.value = 1;
+    for(i = 0; i < N; i++) {
+        s[i].value = 0;
+    }
+    
+    // Initialize states
+    for(i = 0; i < N; i++) {
+        state[i] = THINKING;
+    }
+    
+    printf("Dining Philosophers Problem Simulation\n");
+    printf("Number of philosophers: %d\n\n", N);
+    
+    // In a real implementation, these would be threads
+    // Here we just simulate the operations sequentially
+    for(i = 0; i < N; i++) {
+        philosopher(i);
+    }
+    
+    printf("\nNote: In a real implementation, philosophers would be concurrent threads.\n");
+    printf("This is a simplified simulation to demonstrate the concept.\n");
+}
