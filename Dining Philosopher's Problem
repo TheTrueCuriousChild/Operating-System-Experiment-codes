@@ -1,106 +1,89 @@
 #include <stdio.h>
+#include <stdlib.h>
 
-// Philosopher states
-#define THINKING 0
-#define HUNGRY 1
-#define EATING 2
+int chopstick[5] = {1, 1, 1, 1, 1}; // 1 = available, 0 = in use
+int state[5] = {0, 0, 0, 0, 0};     // 0 = thinking, 1 = eating
 
-// Number of philosophers
-#define N 5
-
-// Semaphore implementation
-typedef struct {
-    int value;
-} Semaphore;
-
-void wait(Semaphore *s) {
-    while(s->value <= 0); // Busy waiting
-    s->value--;
+int wait(int s)
+{
+    return (--s);
 }
 
-void signal(Semaphore *s) {
-    s->value++;
+int signal(int s)
+{
+    return (++s);
 }
 
-// Global variables
-int state[N];           // Array to store states of philosophers
-Semaphore mutex;        // For mutual exclusion when accessing state array
-Semaphore s[N];         // One semaphore per philosopher
-int philosopher_id[N] = {0, 1, 2, 3, 4}; // Philosopher IDs
-
-// Function to get left philosopher
-int left(int i) {
-    return (i + N - 1) % N;
-}
-
-// Function to get right philosopher
-int right(int i) {
-    return (i + 1) % N;
-}
-
-// Function to check if philosopher can eat
-void test(int i) {
-    if(state[i] == HUNGRY && state[left(i)] != EATING && state[right(i)] != EATING) {
-        state[i] = EATING;
-        signal(&s[i]);
+void take_chopsticks(int i)
+{
+    if (chopstick[i] == 1 && chopstick[(i + 1) % 5] == 1)
+    {
+        chopstick[i] = wait(chopstick[i]);
+        chopstick[(i + 1) % 5] = wait(chopstick[(i + 1) % 5]);
+        state[i] = 1; // Eating
+        printf("Philosopher %d is EATING with chopsticks %d and %d.\n", i, i, (i + 1) % 5);
+    }
+    else
+    {
+        printf("Philosopher %d is THINKING (chopsticks not available).\n", i);
     }
 }
 
-// Function for philosopher to pick up forks
-void pickup_forks(int i) {
-    wait(&mutex);           // Enter critical section
-    state[i] = HUNGRY;      // Set state to hungry
-    printf("Philosopher %d is hungry\n", i);
-    test(i);                // Try to pick up forks
-    signal(&mutex);         // Exit critical section
-    wait(&s[i]);            // Block if forks weren't picked up
-    printf("Philosopher %d is eating\n", i);
-}
-
-// Function for philosopher to put down forks
-void return_forks(int i) {
-    wait(&mutex);           // Enter critical section
-    state[i] = THINKING;    // Set state to thinking
-    printf("Philosopher %d is thinking\n", i);
-    test(left(i));          // Test left neighbor
-    test(right(i));         // Test right neighbor
-    signal(&mutex);         // Exit critical section
-}
-
-// Function representing philosopher's lifecycle
-void philosopher(int i) {
-    int j;
-    for(j = 0; j < 3; j++) {  // Each philosopher eats 3 times
-        printf("Philosopher %d is thinking\n", i);
-        pickup_forks(i);      // Pickup forks
-        // Eating
-        return_forks(i);      // Return forks
+void put_chopsticks(int i)
+{
+    if (state[i] == 1)
+    {
+        chopstick[i] = signal(chopstick[i]);
+        chopstick[(i + 1) % 5] = signal(chopstick[(i + 1) % 5]);
+        state[i] = 0; // Thinking
+        printf("Philosopher %d has FINISHED eating and put down chopsticks %d and %d.\n", i, i, (i + 1) % 5);
+    }
+    else
+    {
+        printf("Philosopher %d is not eating, cannot put down chopsticks.\n", i);
     }
 }
 
-void main() {
-    int i;
-    
-    // Initialize semaphores
-    mutex.value = 1;
-    for(i = 0; i < N; i++) {
-        s[i].value = 0;
+void main()
+{
+    int choice, phil;
+
+    printf("\n--- Dining Philosopher Problem Simulation ---\n");
+
+    while (1)
+    {
+        printf("\n1. Philosopher tries to EAT");
+        printf("\n2. Philosopher FINISHES eating");
+        printf("\n3. Exit");
+        printf("\nEnter your choice: ");
+        scanf("%d", &choice);
+
+        switch (choice)
+        {
+            case 1:
+                printf("Enter philosopher number (0–4): ");
+                scanf("%d", &phil);
+                if (phil >= 0 && phil < 5)
+                    take_chopsticks(phil);
+                else
+                    printf("Invalid philosopher number!\n");
+                break;
+
+            case 2:
+                printf("Enter philosopher number (0–4): ");
+                scanf("%d", &phil);
+                if (phil >= 0 && phil < 5)
+                    put_chopsticks(phil);
+                else
+                    printf("Invalid philosopher number!\n");
+                break;
+
+            case 3:
+                printf("Exiting...\n");
+                exit(0);
+
+            default:
+                printf("Invalid choice. Try again!\n");
+        }
     }
-    
-    // Initialize states
-    for(i = 0; i < N; i++) {
-        state[i] = THINKING;
-    }
-    
-    printf("Dining Philosophers Problem Simulation\n");
-    printf("Number of philosophers: %d\n\n", N);
-    
-    // In a real implementation, these would be threads
-    // Here we just simulate the operations sequentially
-    for(i = 0; i < N; i++) {
-        philosopher(i);
-    }
-    
-    printf("\nNote: In a real implementation, philosophers would be concurrent threads.\n");
-    printf("This is a simplified simulation to demonstrate the concept.\n");
 }
